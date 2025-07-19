@@ -2,11 +2,15 @@ from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app import schemas, models
 from backend.app.utils.security import get_password_hash, verify_password
-import uuid
 from datetime import datetime
+import uuid
 
 
-async def get_user(db: AsyncSession, email: str):
+async def get_user(db: AsyncSession, user_id: int):
+    return await db.get(models.User, user_id)
+
+
+async def get_user_by_email(db: AsyncSession, email: str):
     result = await db.execute(select(models.User).where(models.User.email == email))
     return result.scalar_one_or_none()
 
@@ -17,7 +21,7 @@ async def create_user(db: AsyncSession, user: schemas.UserCreate):
         full_name=user.full_name,
         hashed_password=get_password_hash(user.password),
         is_active=True,
-        is_admin=False
+        is_admin=False,
     )
     db.add(db_user)
     await db.commit()
@@ -26,19 +30,21 @@ async def create_user(db: AsyncSession, user: schemas.UserCreate):
 
 
 async def authenticate_user(db: AsyncSession, email: str, password: str):
-    user = await get_user(db, email)
-    if not user:
-        return None
-    if not verify_password(password, user.hashed_password):
+    result = await db.execute(select(models.User).where(models.User.email == email))
+    user = result.scalar_one_or_none()
+    if not user or not verify_password(password, user.hashed_password):
         return None
     return user
 
 
-async def create_order(db: AsyncSession, user_email: str, order: schemas.OrderCreate):
-    order_id = str(uuid.uuid4())
+async def create_order(db: AsyncSession, user_id: int, order: schemas.OrderCreate):
+    user = await get_user(db, user_id)
+    if not user:
+        return None
+
     db_order = models.Order(
-        id=order_id,
-        user_email=user_email,
+        id=str(uuid.uuid4()),
+        user_id=user_id,
         items=[item.dict() for item in order.items],
         total_amount=order.total_amount,
         status="pending"
@@ -54,9 +60,13 @@ async def get_order(db: AsyncSession, order_id: str):
     return result.scalar_one_or_none()
 
 
-async def create_refresh_token(db: AsyncSession, user_email: str, token: str, expires_at: datetime):
+async def create_refresh_token(db: AsyncSession, user_id: int, token: str, expires_at: datetime):
+    user = await db.get(models.User, user_id)
+    if not user:
+        raise Exception("User not found")
+
     db_token = models.RefreshToken(
-        user_email=user_email,
+        user_id=user.id,
         token=token,
         expires_at=expires_at,
         revoked=False,
@@ -65,6 +75,7 @@ async def create_refresh_token(db: AsyncSession, user_email: str, token: str, ex
     await db.commit()
     await db.refresh(db_token)
     return db_token
+
 
 
 async def get_refresh_token(db: AsyncSession, token: str):

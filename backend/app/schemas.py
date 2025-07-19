@@ -1,5 +1,6 @@
-from pydantic import BaseModel, EmailStr
-from typing import List
+from pydantic import BaseModel, EmailStr, condecimal
+from typing import List, Optional
+from datetime import datetime
 
 
 class UserCreate(BaseModel):
@@ -9,9 +10,28 @@ class UserCreate(BaseModel):
 
 
 class UserOut(BaseModel):
+    id: int
     email: EmailStr
     full_name: str
+    wallet_balance: float
     is_active: bool
+
+    class Config:
+        orm_mode = True
+
+
+class WalletTopUpBase(BaseModel):
+    amount: condecimal(gt=0)
+
+
+class WalletTopUpCreate(WalletTopUpBase):
+    pass
+
+
+class WalletTopUpOut(WalletTopUpBase):
+    id: int
+    status: str
+    created_at: Optional[datetime]
 
     class Config:
         orm_mode = True
@@ -20,26 +40,6 @@ class UserOut(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
-
-
-class Item(BaseModel):
-    name: str
-    quantity: int
-    price: int
-
-
-class OrderCreate(BaseModel):
-    items: List[Item]
-    total_amount: int
-
-
-class OrderOut(OrderCreate):
-    id: str
-    user_email: EmailStr
-    status: str
-
-    class Config:
-        orm_mode = True
 
 
 class TokenPair(BaseModel):
@@ -60,3 +60,23 @@ class TokenRefreshRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class Item(BaseModel):
+    name: str
+    quantity: int
+    price: int
+
+
+class OrderCreate(BaseModel):
+    items: List[Item]
+    total_amount: int
+
+
+class OrderOut(OrderCreate):
+    id: str
+    user_email: EmailStr
+    status: str
+
+    class Config:
+        orm_mode = True

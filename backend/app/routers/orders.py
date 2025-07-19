@@ -17,13 +17,13 @@ QR_FOLDER = os.path.join(BASE_DIR, "static", "qr")
 os.makedirs(QR_FOLDER, exist_ok=True)
 
 
-@router.post("/orders", response_model=schemas.OrderOut)
+@router.post("/", response_model=schemas.OrderOut)
 async def create_order(order_in: schemas.OrderCreate, db: AsyncSession = Depends(get_db),
                        current_user=Depends(get_current_user)):
     return await crud.create_order(db, user_email=current_user.email, order=order_in)
 
 
-@router.get("/orders/{order_id}/qr")
+@router.get("/{order_id}/qr")
 async def generate_qr(order_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(Order).options(selectinload(Order.user)).where(Order.id == order_id)

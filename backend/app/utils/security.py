@@ -34,17 +34,24 @@ def create_refresh_token(data: dict, expires_delta: timedelta = None):
     return encoded_jwt
 
 
-def decode_access_token(token: str):
+def decode_access_token(token: str) -> int | None:
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        return payload.get("sub")
-    except JWTError:
+        sub = payload.get("sub")
+        return int(sub) if sub and str(sub).isdigit() else None
+    except (JWTError, ValueError, TypeError):
         return None
 
 
+
 async def generate_refresh_token(db: AsyncSession, user_email: str, token: str, expires_at: datetime):
+    result = await db.execute(select(models.User).where(models.User.email == user_email))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise Exception("User not found")
+
     db_token = models.RefreshToken(
-        user_email=user_email,
+        user_id=user.id,
         token=token,
         expires_at=expires_at,
         revoked=False,

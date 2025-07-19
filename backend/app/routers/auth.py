@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from datetime import timedelta, datetime
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.schemas import LoginRequest, TokenRefreshRequest
 from backend.app.utils.security import decode_access_token, create_access_token, create_refresh_token
 from backend.app.config import settings
-from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.database import get_db
 from backend.app import schemas, crud
 
@@ -13,7 +13,7 @@ router = APIRouter()
 
 @router.post("/register", response_model=schemas.UserOut)
 async def register(user_in: schemas.UserCreate, db: AsyncSession = Depends(get_db)):
-    existing_user = await crud.get_user(db, user_in.email)
+    existing_user = await crud.get_user_by_email(db, user_in.email)
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
 
@@ -28,16 +28,16 @@ async def login(login_in: LoginRequest, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Incorrect email or password")
 
     access_token = create_access_token(
-        data={"sub": user.email},
+        data={"sub": str(user.id)},  # 🔄 dùng user.id thay vì email
         expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     refresh_token = create_refresh_token(
-        data={"sub": user.email},
+        data={"sub": str(user.id)},  # 🔄
         expires_delta=timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     )
     expires_at = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
 
-    await crud.create_refresh_token(db, user.email, refresh_token, expires_at)
+    await crud.create_refresh_token(db, user.id, refresh_token, expires_at)  # 🔄 truyền user.id
 
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
@@ -48,12 +48,12 @@ async def refresh_token(data: TokenRefreshRequest, db: AsyncSession = Depends(ge
     if not db_token or db_token.revoked or db_token.expires_at < datetime.utcnow():
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
 
-    email = decode_access_token(data.refresh_token)
-    if email is None:
+    user_id = decode_access_token(data.refresh_token)  # 🔄 trả về int
+    if user_id is None:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
     access_token = create_access_token(
-        data={"sub": email},
+        data={"sub": str(user_id)},
         expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     return {"access_token": access_token, "token_type": "bearer"}

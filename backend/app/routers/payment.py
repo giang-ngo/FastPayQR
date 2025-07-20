@@ -18,9 +18,17 @@ async def pay_view(
         current_user=Depends(get_current_user),
 ):
     order = await crud.get_order(db, order_id)
-    if not order or order.user_email != current_user.email:
+    if not order or order.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Order not found")
-    return order
+    order_dict = {
+        "id": order.id,
+        "items": order.items,
+        "total_amount": order.total_amount,
+        "user_email": order.user.email,
+        "status": order.status,
+    }
+
+    return order_dict
 
 
 @router.post("/pay/internal/{order_id}")
@@ -33,7 +41,7 @@ async def pay_internal(
         select(Order).options(selectinload(Order.user)).where(Order.id == order_id)
     )
     order = result.scalar_one_or_none()
-    if not order or order.user_email != current_user.email:
+    if not order or order.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Order not found")
 
     if order.status == "paid":

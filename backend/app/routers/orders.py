@@ -20,7 +20,13 @@ os.makedirs(QR_FOLDER, exist_ok=True)
 @router.post("/", response_model=schemas.OrderOut)
 async def create_order(order_in: schemas.OrderCreate, db: AsyncSession = Depends(get_db),
                        current_user=Depends(get_current_user)):
-    return await crud.create_order(db, user_email=current_user.email, order=order_in)
+    order = await crud.create_order(db, user_id=current_user.id, order=order_in)
+
+    await db.refresh(order, attribute_names=["user"])
+    return {
+        **order.__dict__,
+        "user_email": order.user.email
+    }
 
 
 @router.get("/{order_id}/qr")
@@ -33,7 +39,7 @@ async def generate_qr(order_id: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Order not found")
 
     ip = "192.168.1.6"
-    qr_data = f"http://{ip}:8000/pay/{order_id}"
+    qr_data = f"http://{ip}:8000/payment/pay/{order_id}"
 
     img_filename = f"{order_id}.png"
     img_path = os.path.join(QR_FOLDER, img_filename)
@@ -44,7 +50,6 @@ async def generate_qr(order_id: str, db: AsyncSession = Depends(get_db)):
         pass
     except Exception as e:
         print(f"Lỗi khi xóa ảnh cũ: {e}")
-
 
     img = qrcode.make(qr_data)
     img.save(img_path)

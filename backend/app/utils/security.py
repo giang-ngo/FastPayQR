@@ -36,12 +36,15 @@ def create_refresh_token(data: dict, expires_delta: timedelta = None):
 
 def decode_access_token(token: str) -> int | None:
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM]
+        )
         sub = payload.get("sub")
         return int(sub) if sub and str(sub).isdigit() else None
     except (JWTError, ValueError, TypeError):
         return None
-
 
 
 async def generate_refresh_token(db: AsyncSession, user_email: str, token: str, expires_at: datetime):

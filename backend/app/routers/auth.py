@@ -28,11 +28,11 @@ async def login(login_in: LoginRequest, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Incorrect email or password")
 
     access_token = create_access_token(
-        data={"sub": str(user.id)},  # 🔄 dùng user.id thay vì email
+        data={"sub": str(user.id)},
         expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     refresh_token = create_refresh_token(
-        data={"sub": str(user.id)},  # 🔄
+        data={"sub": str(user.id)},
         expires_delta=timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     )
     expires_at = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
@@ -48,7 +48,7 @@ async def refresh_token(data: TokenRefreshRequest, db: AsyncSession = Depends(ge
     if not db_token or db_token.revoked or db_token.expires_at < datetime.utcnow():
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
 
-    user_id = decode_access_token(data.refresh_token)  # 🔄 trả về int
+    user_id = decode_access_token(data.refresh_token)
     if user_id is None:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 

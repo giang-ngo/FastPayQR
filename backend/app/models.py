@@ -9,15 +9,15 @@ import uuid
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)  # thêm id kiểu Integer auto increment
-    email = Column(String, unique=True, index=True, nullable=False)  # giữ unique chứ không phải primary key nữa
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    email = Column(String, unique=True, index=True, nullable=False)
     full_name = Column(String, nullable=False)
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
     wallet_balance = Column(Float, default=0.0)
 
-    # Quan hệ
+
     topups = relationship("WalletTopUp", back_populates="user")
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
     orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")
@@ -31,7 +31,8 @@ class WalletTopUp(Base):
     amount = Column(Float, nullable=False)
     status = Column(String, default="pending")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
 
     user = relationship("User", back_populates="topups")
 

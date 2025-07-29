@@ -6,22 +6,34 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 import qrcode
 import os
+import socket
 
 from backend.app.database import get_db
 from backend.app.models import Order
 
 router = APIRouter()
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 QR_FOLDER = os.path.join(BASE_DIR, "static", "qr")
-
 os.makedirs(QR_FOLDER, exist_ok=True)
 
 
-@router.post("/", response_model=schemas.OrderOut)
-async def create_order(order_in: schemas.OrderCreate, db: AsyncSession = Depends(get_db),
-                       current_user=Depends(get_current_user)):
-    order = await crud.create_order(db, user_id=current_user.id, order=order_in)
+def get_local_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("8.8.8.8", 80))
+        return s.getsockname()[0]
+    finally:
+        s.close()
 
+
+@router.post("/", response_model=schemas.OrderOut)
+async def create_order(
+        order_in: schemas.OrderCreate,
+        db: AsyncSession = Depends(get_db),
+        current_user=Depends(get_current_user)
+):
+    order = await crud.create_order(db, user_id=current_user.id, order=order_in)
     await db.refresh(order, attribute_names=["user"])
     return {
         **order.__dict__,
@@ -38,7 +50,7 @@ async def generate_qr(order_id: str, db: AsyncSession = Depends(get_db)):
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    ip = "192.168.1.6"
+    ip = get_local_ip()
     qr_data = f"http://{ip}:8000/payment/pay/{order_id}"
 
     img_filename = f"{order_id}.png"

@@ -83,6 +83,7 @@ async def get_refresh_token(db: AsyncSession, token: str):
     return result.scalar_one_or_none()
 
 
+
 async def revoke_refresh_token(db: AsyncSession, token: str):
     db_token = await get_refresh_token(db, token)
     if db_token:

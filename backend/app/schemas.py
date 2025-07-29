@@ -17,7 +17,7 @@ class UserOut(BaseModel):
     is_active: bool
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class WalletTopUpBase(BaseModel):
@@ -34,7 +34,7 @@ class WalletTopUpOut(WalletTopUpBase):
     created_at: Optional[datetime]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class Token(BaseModel):
@@ -79,4 +79,4 @@ class OrderOut(OrderCreate):
     status: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True

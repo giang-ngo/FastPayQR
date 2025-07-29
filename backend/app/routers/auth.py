@@ -37,7 +37,7 @@ async def login(login_in: LoginRequest, db: AsyncSession = Depends(get_db)):
     )
     expires_at = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
 
-    await crud.create_refresh_token(db, user.id, refresh_token, expires_at)  # 🔄 truyền user.id
+    await crud.create_refresh_token(db, user.id, refresh_token, expires_at)
 
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 

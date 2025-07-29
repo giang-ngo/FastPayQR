@@ -16,7 +16,15 @@ const OrderQRInfo = () => {
             setError(null);
             setOrderData(null);
             try {
-                const res = await axios.get(`http://192.168.1.6:8000/orders/${orderId}/qr`);
+                const accessToken = localStorage.getItem("accessToken");
+                console.log("AccessToken:", localStorage.getItem("accessToken"));
+                const res = await axios.get(`http://192.168.1.4:8000/orders/${orderId}/qr`, {
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`
+                    }
+                });
+
+
                 setOrderData(res.data);
             } catch (err) {
                 if (err.response) {

@@ -1,0 +1,55 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - appnet
+    restart: always
+
+  fastapi:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: fastapi_app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+    volumes:
+      - .:/app
+    env_file:
+      - backend/.env
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    networks:
+      - appnet
+    restart: always
+
+  celery:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: celery_worker
+    command: celery -A backend.app.utils.celery_worker.celery_app worker --loglevel=info
+    depends_on:
+      - redis
+      - fastapi
+    volumes:
+      - .:/app
+    env_file:
+      - backend/.env
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    networks:
+      - appnet
+    restart: always
+
+networks:
+  appnet:
+    driver: bridge

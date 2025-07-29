@@ -4,6 +4,8 @@ from backend.app.routers import payment, auth, orders, wallet
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import os
+import logging
+from backend.app.tasks.tasks import send_invoice_email_task
 
 app = FastAPI()
 
@@ -27,8 +29,9 @@ app.include_router(payment.router, prefix="/payment")
 app.include_router(wallet.router, prefix="/wallet")
 
 
-
 @app.on_event("startup")
 async def on_startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+

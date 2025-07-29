@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app import crud
@@ -7,8 +8,11 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 from backend.app.models import Order
 from backend.app.deps import get_current_user
+from backend.app.tasks.tasks import send_invoice_email_task
 
 router = APIRouter()
+
+logger = logging.getLogger(__name__)
 
 
 @router.get("/pay/{order_id}", response_model=OrderOut)
@@ -18,6 +22,7 @@ async def pay_view(
         current_user=Depends(get_current_user),
 ):
     order = await crud.get_order(db, order_id)
+
     if not order or order.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Order not found")
     order_dict = {
@@ -25,8 +30,7 @@ async def pay_view(
         "items": order.items,
         "total_amount": order.total_amount,
         "user_email": order.user.email,
-        "status": order.status,
-    }
+        "status": order.status, }
 
     return order_dict
 
@@ -54,6 +58,13 @@ async def pay_internal(
     user.wallet_balance -= order.total_amount
     order.status = "paid"
     await db.commit()
+
+    send_invoice_email_task.delay(
+        order_id=order.id,
+        user_email=user.email,
+        user_name=user.full_name,
+        amount=order.total_amount
+    )
 
     return {"message": "Payment successful"}
 

@@ -6,8 +6,6 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 import qrcode
 import os
-import socket
-
 from backend.app.database import get_db
 from backend.app.models import Order
 
@@ -17,14 +15,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 QR_FOLDER = os.path.join(BASE_DIR, "static", "qr")
 os.makedirs(QR_FOLDER, exist_ok=True)
 
-
-def get_local_ip():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        s.connect(("8.8.8.8", 80))
-        return s.getsockname()[0]
-    finally:
-        s.close()
+BASE_URL = 'http://127.0.0.1:8000'
 
 
 @router.post("/", response_model=schemas.OrderOut)
@@ -50,8 +41,7 @@ async def generate_qr(order_id: str, db: AsyncSession = Depends(get_db)):
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    ip = get_local_ip()
-    qr_data = f"http://{ip}:8000/payment/pay/{order_id}"
+    qr_data = f"http://192.168.1.4:8000/payment/pay/{order_id}"
 
     img_filename = f"{order_id}.png"
     img_path = os.path.join(QR_FOLDER, img_filename)
@@ -72,6 +62,6 @@ async def generate_qr(order_id: str, db: AsyncSession = Depends(get_db)):
         "amount": order.total_amount,
         "status": order.status,
         "items": order.items,
-        "image_url": f"http://{ip}:8000/static/qr/{img_filename}",
+        "image_url": f"{BASE_URL}/static/qr/{img_filename}",
         "qr_url": qr_data,
     }

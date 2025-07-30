@@ -12,10 +12,7 @@ const PayPage = () => {
     const fetchOrder = async () => {
       try {
         const accessToken = localStorage.getItem("accessToken");
-        console.log("AccessToken:", accessToken);
-
-        // Lấy thông tin order
-        const res = await axios.get(`http://192.168.1.4:8000/orders/${orderId}/qr`, {
+        const res = await axios.get(`http://127.0.0.1:8000/orders/${orderId}/qr`, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
@@ -31,14 +28,13 @@ const PayPage = () => {
   const handlePayment = async () => {
     try {
       const accessToken = localStorage.getItem("accessToken");
-      await axios.post(`http://192.168.1.4:8000/pay/internal/${orderId}`, null, {
+      await axios.post(`http://127.0.0.1:8000/payment/pay/internal/${orderId}`, null, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
       });
       setPaid(true);
 
-      // Reload lại thông tin order sau khi thanh toán
       const res = await axios.get(`http://192.168.1.4:8000/orders/${orderId}/qr`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,

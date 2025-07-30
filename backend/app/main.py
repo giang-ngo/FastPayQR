@@ -4,8 +4,6 @@ from backend.app.routers import payment, auth, orders, wallet
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import os
-import logging
-from backend.app.tasks.tasks import send_invoice_email_task
 
 app = FastAPI()
 

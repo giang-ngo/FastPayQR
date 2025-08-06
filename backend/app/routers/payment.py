@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 from backend.app.models import Order
 from backend.app.deps import get_current_user
 from backend.app.tasks.tasks import send_invoice_email_task
+from backend.app.websocket_manager import manager
 
 router = APIRouter()
 
@@ -58,6 +59,7 @@ async def pay_internal(
     user.wallet_balance -= order.total_amount
     order.status = "paid"
     await db.commit()
+    await manager.send_update(order_id, "paid")
 
     send_invoice_email_task.delay(
         order_id=order.id,

@@ -1,4 +1,3 @@
-version: "3.9"
 
 services:
   redis:
@@ -46,6 +45,27 @@ services:
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    networks:
+      - appnet
+    restart: always
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: react_frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    env_file:
+      - frontend/.env
+    environment:
+      - VITE_BACKEND_URL=http://localhost:8000
+      - VITE_WS_URL=ws://localhost:8000
+
+    depends_on:
+      - fastapi
     networks:
       - appnet
     restart: always

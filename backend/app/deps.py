@@ -5,6 +5,7 @@ from backend.app.database import get_db
 from backend.app.utils.security import decode_access_token
 from backend.app.crud import get_user
 from backend.app.models import User
+from sqlalchemy.future import select
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -27,3 +28,14 @@ async def get_current_admin_user(current_user: User = Depends(get_current_user))
     if not current_user.is_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions")
     return current_user
+
+
+async def get_user_role(user_id: int, db: AsyncSession):
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalars().first()
+    if not user:
+        return None
+    if user.is_admin:
+        return "admin"
+    else:
+        return "user"

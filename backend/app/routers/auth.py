@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from datetime import timedelta, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from backend.app.deps import get_current_user
 from backend.app.schemas import LoginRequest, TokenRefreshRequest
 from backend.app.utils.security import decode_access_token, create_access_token, create_refresh_token
 from backend.app.config import settings
@@ -65,3 +65,8 @@ async def logout(data: TokenRefreshRequest, db: AsyncSession = Depends(get_db)):
     if not revoked:
         raise HTTPException(status_code=400, detail="Refresh token invalid")
     return {"detail": "Logged out successfully"}
+
+
+@router.get("/me", response_model=schemas.UserOut)
+async def read_current_user(current_user: schemas.UserOut = Depends(get_current_user)):
+    return current_user

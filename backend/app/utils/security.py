@@ -77,3 +77,22 @@ async def revoke_refresh_token(db: AsyncSession, token: str):
         await db.commit()
         return True
     return False
+
+
+from backend.app.crud import get_user
+from sqlalchemy.ext.asyncio import AsyncSession
+
+
+async def verify_token(token: str, db: AsyncSession):
+    try:
+        user_id = decode_access_token(token)
+        if user_id is None:
+            return None
+
+        user = await get_user(db, user_id)
+        if user is None:
+            return None
+
+        return "admin" if user.is_admin else str(user_id)
+    except Exception:
+        return None

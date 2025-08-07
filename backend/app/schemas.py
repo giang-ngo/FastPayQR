@@ -15,6 +15,7 @@ class UserOut(BaseModel):
     full_name: str
     wallet_balance: float
     is_active: bool
+    is_admin: bool
 
     class Config:
         from_attributes = True

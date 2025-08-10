@@ -32,7 +32,7 @@ async def websocket_chat(
     await websocket.accept()
     print("WebSocket accepted")
 
-    user_key = None
+    user_key = None  # key dùng để lưu trong manager
 
     try:
         if token:
@@ -82,7 +82,7 @@ async def websocket_chat(
             if user_key != "admin":
                 message = {
                     "from": user_key,
-                    "userId": user_key,
+                    "to": "admin",
                     "text": msg_obj.get("text"),
                     "timestamp": int(time.time() * 1000),
                 }
@@ -94,7 +94,7 @@ async def websocket_chat(
                 if to_user and text:
                     message = {
                         "from": "admin",
-                        "userId": to_user,
+                        "to": to_user,
                         "text": text,
                         "timestamp": int(time.time() * 1000),
                     }
@@ -102,6 +102,7 @@ async def websocket_chat(
                     await manager.send_personal_message("admin", message)
                 else:
                     print("Missing 'to' or 'text' in admin message")
+
 
     except WebSocketDisconnect:
         print(f"WebSocket disconnected: {user_key}")

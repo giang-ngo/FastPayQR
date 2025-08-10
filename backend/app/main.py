@@ -1,6 +1,6 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from backend.app.database import engine, Base
-from backend.app.routers import auth, orders, payment, wallet, ws  # thêm ws
+from backend.app.routers import auth, orders, payment, wallet, ws
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
@@ -32,7 +32,9 @@ app.include_router(auth.router, prefix="/auth")
 app.include_router(orders.router, prefix="/orders")
 app.include_router(payment.router, prefix="/payment")
 app.include_router(wallet.router, prefix="/wallet")
+app.include_router(ws.router, prefix="/ws")
 app.include_router(ws.router)
+
 
 # Database
 @app.on_event("startup")
@@ -63,7 +65,9 @@ def custom_openapi():
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
+
 app.openapi = custom_openapi
+
 
 @app.get("/docs", include_in_schema=False, response_class=HTMLResponse)
 async def custom_docs():
@@ -71,6 +75,7 @@ async def custom_docs():
         openapi_url="/openapi.json",
         title="Admin API Docs"
     )
+
 
 @app.get("/openapi.json", include_in_schema=False)
 async def openapi():

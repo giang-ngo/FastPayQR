@@ -5,7 +5,7 @@ const ChatSupport = () => {
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState("");
     const ws = useRef(null);
-    const [role, setRole] = useState("guest");
+    const [role, setRole] = useState("guest")
     const [userId, setUserId] = useState(null);
     const [toUser, setToUser] = useState("");
     const messagesEndRef = useRef(null);
@@ -17,7 +17,6 @@ const ChatSupport = () => {
                 .get("http://localhost:8000/auth/me", {headers: {Authorization: `Bearer ${token}`}})
                 .then((res) => {
                     const roleFromApi = res.data.is_admin ? "admin" : "user";
-                    console.log("Auth me response:", roleFromApi);
                     setRole(roleFromApi);
                     setUserId(res.data.id);
                     connectWebSocket(token, res.data.id);
@@ -50,8 +49,6 @@ const ChatSupport = () => {
         ws.current.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
-                console.log("Received message:", data);
-
                 setMessages((prev) => {
                     const exists = prev.some(
                         (msg) =>
@@ -73,13 +70,13 @@ const ChatSupport = () => {
     };
 
     const sendMessage = () => {
-        console.log("Current role:", role);
         if (!input.trim()) return;
 
         const message = {
             from: userId,
             text: input.trim(),
             timestamp: Date.now(),
+            to: toUser.trim(),
         };
 
         if (role === "admin") {
@@ -91,8 +88,6 @@ const ChatSupport = () => {
         } else {
             message.userId = userId;
         }
-
-        console.log("Sending message:", message);
 
         if (ws.current && ws.current.readyState === WebSocket.OPEN) {
             ws.current.send(JSON.stringify(message));
@@ -176,31 +171,44 @@ const ChatSupport = () => {
                 )}
 
                 {messages.map((msg, i) => {
+                    if (!msg.text || !msg.text.trim()) {
+                        return null;
+                    }
                     const isMe = String(msg.from) === String(userId);
                     let senderLabel = "";
+
                     if (isMe) {
-                        if (role === "admin" && msg.to) {
+                        if (role === "admin" && msg.to && msg.to !== "admin") {
                             senderLabel = `Admin → ${msg.to}`;
+                        } else if (role === "admin") {
+                            senderLabel = "Bạn (Admin)";
                         } else {
                             senderLabel = "Bạn";
                         }
                     } else {
                         if (role === "admin") {
-                            if (msg.from.startsWith("guest-")) {
+                            if (msg.from === "admin") {
+                                senderLabel = "Admin";
+                            } else if (typeof msg.from === "string" && msg.from.startsWith("guest-")) {
                                 senderLabel = "Khách";
                             } else {
                                 senderLabel = `User ${msg.from}`;
                             }
                         } else {
-                            if (msg.to === userId) {
-                                senderLabel = "Admin → Bạn";
-                            } else if (msg.from.startsWith("guest-")) {
+                            if (msg.from === "admin") {
+                                senderLabel = "Admin";
+                            } else if (typeof msg.from === "string" && msg.from.startsWith("guest-")) {
                                 senderLabel = "Khách";
                             } else {
                                 senderLabel = `User ${msg.from}`;
                             }
                         }
                     }
+
+                    const timeString = new Date(msg.timestamp).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
 
                     return (
                         <div
@@ -218,25 +226,47 @@ const ChatSupport = () => {
                                 fontSize: 14,
                                 lineHeight: "1.4",
                                 marginBottom: 6,
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 4,
                             }}
                             title={new Date(msg.timestamp).toLocaleString()}
                         >
                             <small
                                 style={{
                                     fontWeight: "600",
-                                    marginBottom: 4,
-                                    display: "block",
                                     opacity: 0.75,
                                     fontSize: 12,
                                 }}
                             >
                                 {senderLabel}
                             </small>
-                            {msg.text}
+                            <span>{msg.text}</span>
+                            {msg.to && (
+                                <small
+                                    style={{
+                                        fontSize: 10,
+                                        opacity: 0.6,
+                                        alignSelf: "flex-start",
+                                        marginTop: 2,
+                                        fontStyle: "italic",
+                                    }}
+                                >
+                                    → To: {msg.to}
+                                </small>)}
+
+                            <small
+                                style={{
+                                    fontSize: 10,
+                                    opacity: 0.6,
+                                    alignSelf: "flex-end",
+                                }}
+                            >
+                                {timeString}
+                            </small>
                         </div>
                     );
                 })}
-
 
                 <div ref={messagesEndRef}/>
             </div>
@@ -283,8 +313,7 @@ const ChatSupport = () => {
                 </button>
             </div>
         </div>
-    )
-        ;
+    );
 };
 
 export default ChatSupport;

@@ -1,3 +1,5 @@
+import time
+
 from fastapi import WebSocket
 from typing import Dict, List, Union
 import json
@@ -20,6 +22,7 @@ class ConnectionManager:
                 self.active_connections[user_id].append(websocket)
             print(
                 f"User {user_id} websocket connected. Total connections for user: {len(self.active_connections[user_id])}")
+        await self.broadcast_user_list()
 
     def disconnect(self, order_id: str, websocket: WebSocket):
         if order_id == "admin":
@@ -118,6 +121,51 @@ class ConnectionManager:
                 await admin_ws.send_text(json.dumps(message))
             except Exception as e:
                 print(f"Broadcast send error to admin: {e}")
+                disconnected_admins.append(admin_ws)
+        for ws in disconnected_admins:
+            self.admins.remove(ws)
+
+    async def broadcast_notification(self, text: str):
+        message = {
+            "type": "notification",
+            "text": text,
+            "timestamp": int(time.time() * 1000)
+        }
+        for user, conns in self.active_connections.items():
+            for ws in conns:
+                await ws.send_json(message)
+
+    async def broadcast_user_list(self):
+        user_list = list(self.active_connections.keys())
+        message = {
+            "type": "online_users",
+            "users": user_list,
+        }
+        await self.broadcast_json(message)
+
+    async def broadcast_json(self, data: dict):
+        disconnected_users = []
+
+        for user_id, ws_list in self.active_connections.items():
+            to_remove = []
+            for ws in ws_list:
+                try:
+                    await ws.send_json(data)
+                except Exception:
+                    to_remove.append(ws)
+            for ws in to_remove:
+                ws_list.remove(ws)
+            if not ws_list:
+                disconnected_users.append(user_id)
+
+        for user_id in disconnected_users:
+            del self.active_connections[user_id]
+
+        disconnected_admins = []
+        for admin_ws in self.admins:
+            try:
+                await admin_ws.send_json(data)
+            except Exception:
                 disconnected_admins.append(admin_ws)
         for ws in disconnected_admins:
             self.admins.remove(ws)

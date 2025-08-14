@@ -5,10 +5,13 @@ const ChatSupport = () => {
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState("");
     const ws = useRef(null);
-    const [role, setRole] = useState("guest")
+    const [role, setRole] = useState("guest");
     const [userId, setUserId] = useState(null);
     const [toUser, setToUser] = useState("");
+    const [onlineUsers, setOnlineUsers] = useState([]);
+    const [typingStatus, setTypingStatus] = useState({});
     const messagesEndRef = useRef(null);
+    const typingTimeout = useRef(null);
 
     useEffect(() => {
         const token = localStorage.getItem("accessToken");
@@ -49,16 +52,33 @@ const ChatSupport = () => {
         ws.current.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
-                setMessages((prev) => {
-                    const exists = prev.some(
-                        (msg) =>
-                            msg.timestamp === data.timestamp &&
-                            msg.userId === data.userId &&
-                            msg.text === data.text
-                    );
-                    if (exists) return prev;
-                    return [...prev, data];
-                });
+                console.log("data.type", data.type)
+
+                if (data.type === "online_users") {
+                    setOnlineUsers(data.users || []);
+                } else if (data.type === "typing") {
+                    setTypingStatus((prev) => ({...prev, [data.from]: data.typing}));
+                } else if (data.type === "notification") {
+                    setMessages((prev) => [
+                        ...prev,
+                        {
+                            text: data.message,
+                            timestamp: Date.now(),
+                            system: true,
+                        },
+                    ]);
+                } else {
+                    setMessages((prev) => {
+                        const exists = prev.some(
+                            (msg) =>
+                                msg.timestamp === data.timestamp &&
+                                msg.from === data.from &&
+                                msg.text === data.text
+                        );
+                        if (exists) return prev;
+                        return [...prev, data];
+                    });
+                }
             } catch (error) {
                 console.error("Invalid WS message", error);
             }
@@ -67,6 +87,18 @@ const ChatSupport = () => {
         ws.current.onopen = () => console.log("WebSocket connected");
         ws.current.onclose = () => console.log("WebSocket disconnected");
         ws.current.onerror = (e) => console.error("WebSocket error", e);
+    };
+
+    const sendTypingStatus = (isTyping) => {
+        if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+            ws.current.send(
+                JSON.stringify({
+                    type: "typing",
+                    from: userId,
+                    typing: isTyping,
+                })
+            );
+        }
     };
 
     const sendMessage = () => {
@@ -84,14 +116,12 @@ const ChatSupport = () => {
                 alert("Vui lòng nhập User ID để gửi tin");
                 return;
             }
-            message.to = toUser.trim();
-        } else {
-            message.userId = userId;
         }
 
         if (ws.current && ws.current.readyState === WebSocket.OPEN) {
             ws.current.send(JSON.stringify(message));
             setInput("");
+            sendTypingStatus(false);
         } else {
             alert("WebSocket chưa kết nối hoặc đã đóng");
         }
@@ -110,7 +140,7 @@ const ChatSupport = () => {
                 bottom: 20,
                 right: 20,
                 width: 350,
-                height: 450,
+                height: 500,
                 border: "1px solid #ccc",
                 background: "#fefefe",
                 borderRadius: 12,
@@ -136,6 +166,21 @@ const ChatSupport = () => {
             >
                 Hỗ trợ trực tuyến
             </div>
+
+            {role === "admin" && (
+                <div
+                    style={{
+                        backgroundColor: "#f1f1f1",
+                        padding: "8px 12px",
+                        fontSize: 13,
+                        color: "#333",
+                        borderBottom: "1px solid #ddd",
+                    }}
+                >
+
+                    🟢 Online: {onlineUsers.length} người (user {onlineUsers.join(", ") || "Không có ai"})
+                </div>
+            )}
 
             <div
                 style={{
@@ -171,9 +216,23 @@ const ChatSupport = () => {
                 )}
 
                 {messages.map((msg, i) => {
-                    if (!msg.text || !msg.text.trim()) {
-                        return null;
+                    if (!msg.text || !msg.text.trim()) return null;
+                    if (msg.system) {
+                        return (
+                            <div
+                                key={i}
+                                style={{
+                                    textAlign: "center",
+                                    fontSize: 12,
+                                    fontStyle: "italic",
+                                    color: "#888",
+                                }}
+                            >
+                                {msg.text}
+                            </div>
+                        );
                     }
+
                     const isMe = String(msg.from) === String(userId);
                     let senderLabel = "";
 
@@ -206,8 +265,8 @@ const ChatSupport = () => {
                     }
 
                     const timeString = new Date(msg.timestamp).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit'
+                        hour: "2-digit",
+                        minute: "2-digit",
                     });
 
                     return (
@@ -232,13 +291,7 @@ const ChatSupport = () => {
                             }}
                             title={new Date(msg.timestamp).toLocaleString()}
                         >
-                            <small
-                                style={{
-                                    fontWeight: "600",
-                                    opacity: 0.75,
-                                    fontSize: 12,
-                                }}
-                            >
+                            <small style={{fontWeight: "600", opacity: 0.75, fontSize: 12}}>
                                 {senderLabel}
                             </small>
                             <span>{msg.text}</span>
@@ -253,15 +306,9 @@ const ChatSupport = () => {
                                     }}
                                 >
                                     → To: {msg.to}
-                                </small>)}
-
-                            <small
-                                style={{
-                                    fontSize: 10,
-                                    opacity: 0.6,
-                                    alignSelf: "flex-end",
-                                }}
-                            >
+                                </small>
+                            )}
+                            <small style={{fontSize: 10, opacity: 0.6, alignSelf: "flex-end"}}>
                                 {timeString}
                             </small>
                         </div>
@@ -271,18 +318,39 @@ const ChatSupport = () => {
                 <div ref={messagesEndRef}/>
             </div>
 
+            {/* Hiển thị đang gõ ngay trên input */}
             <div
                 style={{
-                    borderTop: "1px solid #ddd",
-                    padding: 12,
-                    display: "flex",
-                    gap: 8,
+                    minHeight: 20,
+                    padding: "0 16px",
+                    fontStyle: "italic",
+                    fontSize: 12,
+                    color: "#666",
                 }}
+            >
+                {Object.entries(typingStatus).map(
+                    ([uid, typing]) =>
+                        typing &&
+                        uid !== userId && (
+                            <div key={uid}>
+                                {role === "admin" ? `User ${uid} đang gõ...` : "Admin đang gõ..."}
+                            </div>
+                        )
+                )}
+            </div>
+
+            <div
+                style={{borderTop: "1px solid #ddd", padding: 12, display: "flex", gap: 8}}
             >
                 <input
                     type="text"
                     value={input}
-                    onChange={(e) => setInput(e.target.value)}
+                    onChange={(e) => {
+                        setInput(e.target.value);
+                        sendTypingStatus(true);
+                        clearTimeout(typingTimeout.current);
+                        typingTimeout.current = setTimeout(() => sendTypingStatus(false), 2000);
+                    }}
                     onKeyDown={(e) => {
                         if (e.key === "Enter") sendMessage();
                     }}
@@ -296,6 +364,7 @@ const ChatSupport = () => {
                         fontSize: 14,
                     }}
                 />
+
                 <button
                     onClick={sendMessage}
                     style={{

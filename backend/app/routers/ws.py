@@ -13,12 +13,14 @@ router = APIRouter()
 async def websocket_endpoint(websocket: WebSocket, order_id: str):
     await manager.connect(order_id, websocket)
     print(f"WebSocket connection accepted for order_id={order_id}")
+    await manager.broadcast_notification(f"User {order_id} đã tham gia cuộc trò chuyện")
     try:
         while True:
             await asyncio.sleep(1)
     except WebSocketDisconnect:
         manager.disconnect(order_id, websocket)
         print(f"WebSocket disconnected for order_id={order_id}")
+        await manager.broadcast_notification(f"User {order_id} đã rời khỏi cuộc trò chuyện")
 
 
 @router.websocket("/ws/support/chat")
@@ -32,7 +34,7 @@ async def websocket_chat(
     await websocket.accept()
     print("WebSocket accepted")
 
-    user_key = None  # key dùng để lưu trong manager
+    user_key = None
 
     try:
         if token:
@@ -67,6 +69,8 @@ async def websocket_chat(
 
         await manager.connect(user_key, websocket)
         print(f"WebSocket connected: {user_key}")
+        await manager.broadcast_user_list()
+        await manager.broadcast_notification(f"{user_key} đã tham gia cuộc trò chuyện")
 
         while True:
             print(f"Waiting for message from {user_key}")
@@ -77,6 +81,26 @@ async def websocket_chat(
                 msg_obj = json.loads(data)
             except json.JSONDecodeError:
                 print(f"Invalid JSON from {user_key}: {data}")
+                continue
+
+            msg_type = msg_obj.get("type")
+
+            if msg_type == "typing":
+                to_user = msg_obj.get("to")
+                typing_msg = {
+                    "type": "typing",
+                    "from": user_key,
+                    "typing": msg_obj.get("typing", False),
+                    "timestamp": int(time.time() * 1000)
+                }
+
+                if user_key == "admin":
+                    if to_user:
+                        typing_msg["to"] = to_user
+                        await manager.send_personal_message(to_user, typing_msg)
+                else:
+                    await manager.broadcast_to_admins(typing_msg)
+
                 continue
 
             if user_key != "admin":
@@ -107,6 +131,7 @@ async def websocket_chat(
     except WebSocketDisconnect:
         print(f"WebSocket disconnected: {user_key}")
         manager.disconnect(user_key, websocket)
+        await manager.broadcast_notification(f"{user_key} đã rời khỏi cuộc trò chuyện")
 
     except Exception as e:
         import traceback
@@ -114,3 +139,4 @@ async def websocket_chat(
         traceback.print_exc()
         await websocket.close(code=1011)
         manager.disconnect(user_key, websocket)
+        await manager.broadcast_notification(f"{user_key} đã rời khỏi cuộc trò chuyện")

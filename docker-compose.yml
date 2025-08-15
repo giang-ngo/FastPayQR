@@ -20,6 +20,7 @@ services:
       - redis
     volumes:
       - .:/app
+      - ./backend/models:/app/models
     env_file:
       - backend/.env
     environment:
@@ -40,6 +41,7 @@ services:
       - fastapi
     volumes:
       - .:/app
+      - ./backend/models:/app/models
     env_file:
       - backend/.env
     environment:
@@ -63,7 +65,6 @@ services:
     environment:
       - VITE_BACKEND_URL=http://localhost:8000
       - VITE_WS_URL=ws://localhost:8000
-
     depends_on:
       - fastapi
     networks:

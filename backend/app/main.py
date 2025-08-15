@@ -8,6 +8,9 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordBearer
 import os
+import asyncio
+
+from backend.app.ai_chat_init import init_ai
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -33,14 +36,18 @@ app.include_router(orders.router, prefix="/orders")
 app.include_router(payment.router, prefix="/payment")
 app.include_router(wallet.router, prefix="/wallet")
 app.include_router(ws.router, prefix="/ws")
-app.include_router(ws.router)
 
 
-# Database
+
 @app.on_event("startup")
 async def on_startup():
+    # Khởi tạo database
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Load AI model async
+    asyncio.create_task(init_ai())
+
 
 
 def custom_openapi():

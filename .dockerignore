@@ -1,0 +1,14 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Node
+node_modules/
+
+# Docker, logs
+*.log
+.env
+backend/models/*
+!backend/models/.gitkeep

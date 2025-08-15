@@ -9,7 +9,7 @@ import time
 router = APIRouter()
 
 
-@router.websocket("/ws/orders/{order_id}")
+@router.websocket("/orders/{order_id}")
 async def websocket_endpoint(websocket: WebSocket, order_id: str):
     await manager.connect(order_id, websocket)
     print(f"WebSocket connection accepted for order_id={order_id}")
@@ -23,7 +23,7 @@ async def websocket_endpoint(websocket: WebSocket, order_id: str):
         await manager.broadcast_notification(f"User {order_id} đã rời khỏi cuộc trò chuyện")
 
 
-@router.websocket("/ws/support/chat")
+@router.websocket("/support/chat")
 async def websocket_chat(
         websocket: WebSocket,
         token: str = Query(None),
@@ -115,17 +115,40 @@ async def websocket_chat(
             else:
                 to_user = msg_obj.get("to")
                 text = msg_obj.get("text")
-                if to_user and text:
-                    message = {
+
+                if to_user == "AI" and text:
+                    user_msg = {
                         "from": "admin",
-                        "to": to_user,
+                        "to": "AI",
                         "text": text,
                         "timestamp": int(time.time() * 1000),
                     }
-                    await manager.send_personal_message(to_user, message)
-                    await manager.send_personal_message("admin", message)
-                else:
-                    print("Missing 'to' or 'text' in admin message")
+                    await manager.send_personal_message("admin", user_msg)
+
+                    typing_msg = {
+                        "type": "typing",
+                        "from": "AI",
+                        "to": "admin",
+                        "typing": True,
+                        "timestamp": int(time.time() * 1000),
+                    }
+                    await manager.send_personal_message("admin", typing_msg)
+
+                    await asyncio.sleep(1.5)
+
+                    from backend.app.utils.ai_chat import ai_assistant
+                    reply_text = ai_assistant.generate_reply("admin", text)
+
+                    reply_msg = {
+                        "from": "AI",
+                        "to": "admin",
+                        "text": reply_text,
+                        "timestamp": int(time.time() * 1000),
+                    }
+                    await manager.send_personal_message("admin", reply_msg)
+
+                    typing_msg["typing"] = False
+                    await manager.send_personal_message("admin", typing_msg)
 
 
     except WebSocketDisconnect:

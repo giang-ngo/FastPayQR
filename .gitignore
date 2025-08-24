@@ -3,3 +3,6 @@ frontend/.env
 *.pyc
 __pycache__/
 backend/models/*
+backend/rag/*
+backend/*.db
+backend/utils/ai_chat.py

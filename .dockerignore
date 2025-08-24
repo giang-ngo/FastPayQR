@@ -3,12 +3,26 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.sqlite3
 
-# Node
+# Virtual environments
+venv/
+env/
+
+# Node / React
 node_modules/
+build/
+dist/
 
-# Docker, logs
+# Git / Docker
+.git
+.gitignore
+
+# Logs / temp
 *.log
-.env
+*.tmp
+
+# Large datasets / models
 backend/models/*
 !backend/models/.gitkeep
+data/

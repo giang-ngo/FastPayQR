@@ -1,35 +1,51 @@
-FROM python:3.11
+FROM python:3.11-slim as builder
 
+# Cài tool để build llama-cpp-python
 RUN apt-get update --allow-releaseinfo-change --fix-missing && \
-    apt-get install -y \
+    apt-get install -y --no-install-recommends \
         build-essential \
-        libpango-1.0-0 \
-        libcairo2 \
-        libgdk-pixbuf-2.0-0 \
-        libffi-dev \
-        libglib2.0-0 \
-        libxml2 \
-        libxslt1.1 \
-        shared-mime-info \
-        fonts-liberation \
-        libjpeg-dev \
-        zlib1g-dev \
-        libtiff-dev \
-        libfreetype6-dev && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-
+        cmake \
+        libopenblas-dev \
+        git \
+        curl \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY backend/requirements.txt ./requirements.txt
 
+# Nâng cấp pip
+RUN python -m pip install --upgrade pip setuptools wheel
 
-RUN python -m pip install --upgrade pip setuptools wheel && \
-    pip install -r requirements.txt
+# Cài dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+
+# ------------------------
+# Final runtime image
+# ------------------------
+FROM python:3.11-slim
+
+RUN apt-get update --allow-releaseinfo-change --fix-missing && \
+    apt-get install -y --no-install-recommends \
+        libopenblas-dev \
+        libgomp1 \
+        ffmpeg \
+        curl \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy from builder
+COPY --from=builder /usr/local /usr/local
 
 COPY . .
 
+# Env tối ưu cho CPU
+ENV OMP_NUM_THREADS=4
+ENV MKL_NUM_THREADS=4
+ENV PYTHONUNBUFFERED=1
+
 EXPOSE 8000
+
 CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]

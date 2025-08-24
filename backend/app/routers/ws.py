@@ -137,7 +137,7 @@ async def websocket_chat(
                     await asyncio.sleep(1.5)
 
                     from backend.app.utils.ai_chat import ai_assistant
-                    reply_text = ai_assistant.generate_reply("admin", text)
+                    reply_text = ai_assistant.generate_reply(text)
 
                     reply_msg = {
                         "from": "AI",
